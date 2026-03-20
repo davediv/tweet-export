@@ -8,8 +8,8 @@ import { getSelector } from '@/lib/selectors';
 const TWEET_SELECTOR = getSelector('tweet');
 const PROCESSED_ATTR = 'data-tweetexport';
 
-/** Guard against multiple `observeTweets` calls patching history twice. */
-let activeObserver = false;
+/** Stored cleanup function to tear down existing observer before creating a new one. */
+let activeCleanup: (() => void) | null = null;
 
 export type TweetCallback = (tweetElement: HTMLElement) => void;
 
@@ -49,13 +49,9 @@ function processTweets(
  * Returns a cleanup function that disconnects all observers.
  */
 export function observeTweets(onTweetFound: TweetCallback): () => void {
-  if (activeObserver) {
-    console.warn(
-      '[TweetExport] observeTweets already active — ignoring duplicate call',
-    );
-    return () => {};
+  if (activeCleanup) {
+    activeCleanup();
   }
-  activeObserver = true;
 
   // --- Main DOM observer: catches dynamically added tweets ---
   const domObserver = new MutationObserver((mutations) => {
@@ -102,11 +98,14 @@ export function observeTweets(onTweetFound: TweetCallback): () => void {
   processTweets(document, onTweetFound);
 
   // --- Cleanup ---
-  return () => {
-    activeObserver = false;
+  const cleanup = () => {
+    activeCleanup = null;
     domObserver.disconnect();
     history.pushState = origPushState;
     history.replaceState = origReplaceState;
     window.removeEventListener('popstate', handleNavigation);
   };
+
+  activeCleanup = cleanup;
+  return cleanup;
 }

@@ -2,7 +2,7 @@
  * Extracts media URLs (images, video thumbnails, GIFs) from tweet DOM elements.
  */
 
-import { getMediaUrls } from '@/lib/selectors';
+import { getMediaUrls, getQuoteTweet } from '@/lib/selectors';
 
 /** Strips query params for deduplication comparison. */
 function baseUrl(url: string): string {
@@ -95,7 +95,7 @@ function extractVideoThumbnails(tweetEl: HTMLElement): string[] {
  */
 export function extractTweetMedia(tweetEl: HTMLElement): string[] {
   // Exclude quote tweet media: find the quote tweet container and skip it
-  const quoteTweet = tweetEl.querySelector('[data-testid="quoteTweet"]');
+  const quoteTweet = getQuoteTweet(tweetEl);
 
   // If there's a quote tweet, we need to only extract from the main tweet area
   // Create a working copy approach: collect from main tweet, then subtract quote media
@@ -107,12 +107,8 @@ export function extractTweetMedia(tweetEl: HTMLElement): string[] {
   }
 
   // Get quote tweet media to exclude
-  const quoteImages = new Set(
-    extractImageUrls(quoteTweet as HTMLElement).map(baseUrl),
-  );
-  const quoteVideos = new Set(
-    extractVideoThumbnails(quoteTweet as HTMLElement).map(baseUrl),
-  );
+  const quoteImages = new Set(extractImageUrls(quoteTweet).map(baseUrl));
+  const quoteVideos = new Set(extractVideoThumbnails(quoteTweet).map(baseUrl));
 
   const mainImages = allImages.filter((u) => !quoteImages.has(baseUrl(u)));
   const mainVideos = allVideos.filter((u) => !quoteVideos.has(baseUrl(u)));
@@ -124,9 +120,7 @@ export function extractTweetMedia(tweetEl: HTMLElement): string[] {
  * Extracts media URLs from a quote tweet element specifically.
  */
 export function extractQuoteTweetMedia(tweetEl: HTMLElement): string[] {
-  const quoteTweet = tweetEl.querySelector<HTMLElement>(
-    '[data-testid="quoteTweet"]',
-  );
+  const quoteTweet = getQuoteTweet(tweetEl);
   if (!quoteTweet) return [];
 
   return [

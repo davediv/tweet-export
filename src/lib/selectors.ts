@@ -39,6 +39,10 @@ const SELECTORS = {
     primary: 'div[role="group"]',
     fallback: 'div[role="group"][aria-label]',
   },
+  quoteTweet: {
+    primary: '[data-testid="quoteTweet"]',
+    fallback: '[data-testid="quoteTweet"]',
+  },
 } as const satisfies Record<string, SelectorDef>;
 
 // --- Query helpers ---
@@ -148,7 +152,7 @@ export function getActionBar(tweetEl: HTMLElement): HTMLElement | null {
   const groups = queryAll<HTMLElement>(tweetEl, SELECTORS.actionBar);
   // Prefer action bars not inside a quote tweet
   const mainBar = groups.filter(
-    (g) => !g.closest('[data-testid="quoteTweet"]'),
+    (g) => !g.closest(SELECTORS.quoteTweet.primary),
   );
   return mainBar.length > 0 ? mainBar[mainBar.length - 1] : null;
 }
@@ -161,6 +165,13 @@ export function getReplyElements(
   root: Element | Document = document,
 ): HTMLElement[] {
   return queryAll<HTMLElement>(root, SELECTORS.tweet);
+}
+
+/**
+ * Returns the quote tweet container element within a tweet.
+ */
+export function getQuoteTweet(tweetEl: HTMLElement): HTMLElement | null {
+  return query<HTMLElement>(tweetEl, SELECTORS.quoteTweet);
 }
 
 /**

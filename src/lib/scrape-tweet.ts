@@ -3,7 +3,12 @@
  */
 
 import { extractQuoteTweetMedia, extractTweetMedia } from '@/lib/scrape-media';
-import { getAuthorInfo, getTimestamp, getTweetText } from '@/lib/selectors';
+import {
+  getAuthorInfo,
+  getQuoteTweet,
+  getTimestamp,
+  getTweetText,
+} from '@/lib/selectors';
 
 export interface TweetAuthor {
   display_name: string;
@@ -32,20 +37,32 @@ export interface TweetData {
 }
 
 /**
+ * Maps selector author info to the TweetAuthor interface shape.
+ */
+export function toTweetAuthor(info: {
+  displayName: string;
+  handle: string;
+}): TweetAuthor {
+  return { display_name: info.displayName, handle: info.handle };
+}
+
+/**
+ * Normalizes an href to an absolute x.com URL.
+ */
+export function normalizeHref(href: string): string {
+  return href.startsWith('/') ? `https://x.com${href}` : href;
+}
+
+/**
  * Extracts the tweet URL from the timestamp's parent link.
  * X wraps the timestamp in an <a> linking to the tweet's permalink.
  */
-function extractTweetUrl(tweetEl: HTMLElement): string | null {
+export function extractTweetUrl(tweetEl: HTMLElement): string | null {
   // The timestamp link contains the canonical tweet URL
   const timeEl = getTimestamp(tweetEl);
   const link = timeEl?.closest<HTMLAnchorElement>('a[href*="/status/"]');
   if (link) {
-    const href = link.getAttribute('href') ?? '';
-    // Normalize to absolute URL on x.com
-    if (href.startsWith('/')) {
-      return `https://x.com${href}`;
-    }
-    return href;
+    return normalizeHref(link.getAttribute('href') ?? '');
   }
 
   // Fallback: search for any status link in the tweet
@@ -53,9 +70,7 @@ function extractTweetUrl(tweetEl: HTMLElement): string | null {
     'a[href*="/status/"]',
   );
   if (statusLink) {
-    const href = statusLink.getAttribute('href') ?? '';
-    if (href.startsWith('/')) return `https://x.com${href}`;
-    return href;
+    return normalizeHref(statusLink.getAttribute('href') ?? '');
   }
 
   return null;
@@ -64,7 +79,7 @@ function extractTweetUrl(tweetEl: HTMLElement): string | null {
 /**
  * Extracts the tweet ID from a tweet URL.
  */
-function extractTweetId(url: string): string {
+export function extractTweetId(url: string): string {
   const match = url.match(/\/status\/(\d+)/);
   return match?.[1] ?? '';
 }
@@ -73,7 +88,7 @@ function extractTweetId(url: string): string {
  * Extracts text content from the tweet text element, preserving line breaks.
  * Handles emojis (rendered as <img alt="emoji">), hashtags, mentions, and links.
  */
-function extractText(tweetTextEl: HTMLElement): string {
+export function extractText(tweetTextEl: HTMLElement): string {
   let result = '';
 
   function walk(node: Node): void {
@@ -118,7 +133,7 @@ function extractText(tweetTextEl: HTMLElement): string {
 /**
  * Extracts the timestamp from a tweet and returns it as ISO 8601 string.
  */
-function extractTimestamp(tweetEl: HTMLElement): string {
+export function extractTimestamp(tweetEl: HTMLElement): string {
   const timeEl = getTimestamp(tweetEl);
   if (!timeEl) return '';
   // X's <time> element has a `datetime` attribute already in ISO 8601
@@ -129,9 +144,7 @@ function extractTimestamp(tweetEl: HTMLElement): string {
  * Extracts quote tweet data from a tweet element.
  */
 function extractQuoteTweet(tweetEl: HTMLElement): QuoteTweetData | undefined {
-  const quoteEl = tweetEl.querySelector<HTMLElement>(
-    '[data-testid="quoteTweet"]',
-  );
+  const quoteEl = getQuoteTweet(tweetEl);
   if (!quoteEl) return undefined;
 
   const authorInfo = getAuthorInfo(quoteEl);
@@ -141,7 +154,7 @@ function extractQuoteTweet(tweetEl: HTMLElement): QuoteTweetData | undefined {
   return {
     text,
     author: authorInfo
-      ? { display_name: authorInfo.displayName, handle: authorInfo.handle }
+      ? toTweetAuthor(authorInfo)
       : { display_name: '', handle: '' },
     images: extractQuoteTweetMedia(tweetEl),
   };
@@ -170,10 +183,11 @@ function extractPoll(tweetEl: HTMLElement): PollData | undefined {
   }
 
   // Extract option texts from list items or direct children
-  const items = pollEl.closest('[data-testid="cardPoll"]')
-    ? pollEl
-        .closest('[data-testid="cardPoll"]')!
-        .querySelectorAll<HTMLElement>('[role="listitem"], li, div > span')
+  const cardPoll = pollEl.closest('[data-testid="cardPoll"]');
+  const items = cardPoll
+    ? cardPoll.querySelectorAll<HTMLElement>(
+        '[role="listitem"], li, div > span',
+      )
     : pollEl.querySelectorAll<HTMLElement>('[role="listitem"], li');
 
   const options: string[] = [];
@@ -210,10 +224,7 @@ export function scrapeTweet(tweetEl: HTMLElement): TweetData | null {
   const result: TweetData = {
     id,
     url,
-    author: {
-      display_name: authorInfo.displayName,
-      handle: authorInfo.handle,
-    },
+    author: toTweetAuthor(authorInfo),
     text,
     timestamp,
     images: extractTweetMedia(tweetEl),

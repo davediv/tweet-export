@@ -1,0 +1,42 @@
+node_modules
+
+# Output
+.output
+stats.html
+stats-*.json
+
+# WXT
+.wxt
+web-ext.config.ts
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.example
+!.env.test
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Project
+/docs
+CLAUDE.md
+AGENTS.md
+.claude
+/.claude

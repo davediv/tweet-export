@@ -7,6 +7,7 @@ import type { GetSettingsResponse } from '@/lib/messages';
 export interface Settings {
   topCommentCount: number;
   copyToClipboard: boolean;
+  showExportPreview: boolean;
 }
 
 export const MIN_COMMENT_COUNT = 1;
@@ -15,6 +16,7 @@ export const MAX_COMMENT_COUNT = 20;
 export const DEFAULT_SETTINGS: Settings = {
   topCommentCount: 5,
   copyToClipboard: false,
+  showExportPreview: false,
 };
 
 const STORAGE_KEY = 'settings';

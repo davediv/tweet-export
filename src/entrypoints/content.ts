@@ -24,7 +24,7 @@ import { scrapeTopComments } from '@/lib/scrape-comments';
 import { scrapeTweet } from '@/lib/scrape-tweet';
 import type { ExtensionMessage } from '@/lib/messages';
 import { requestSettings, type Settings } from '@/lib/storage';
-import { showToast } from '@/lib/toast.svelte';
+import { clearAllToasts, showToast } from '@/lib/toast.svelte';
 import { observeTweets } from '@/lib/tweet-observer';
 
 const EXPORT_TIMEOUT_MS = 10000;
@@ -81,6 +81,7 @@ export default defineContentScript({
         let navigated = false;
         let originalScrollY = 0;
         let restored = false;
+        let previewShown = false;
 
         const safeRestore = async () => {
           if (navigated && !restored) {
@@ -134,10 +135,6 @@ export default defineContentScript({
 
           await safeRestore();
 
-          // Check abort before side-effecting download
-          if (abort.signal.aborted)
-            throw new ExportTimeoutError(EXPORT_TIMEOUT_MS);
-
           const exportData = assembleExportData(
             tweetData,
             comments,
@@ -145,35 +142,72 @@ export default defineContentScript({
           );
           const json = serializeExport(exportData);
 
-          await downloadTweetJson(tweetData.id, json);
+          const shouldCopyToClipboard = settings.copyToClipboard;
+          const performDownload = async () => {
+            await downloadTweetJson(tweetData.id, json);
 
-          let copiedToClipboard = false;
-          if (settings.copyToClipboard) {
-            try {
-              await navigator.clipboard.writeText(json);
-              copiedToClipboard = true;
-            } catch {
-              showToast('info', 'Could not copy to clipboard.');
+            let copiedToClipboard = false;
+            if (shouldCopyToClipboard) {
+              try {
+                await navigator.clipboard.writeText(json);
+                copiedToClipboard = true;
+              } catch {
+                showToast('info', 'Could not copy to clipboard.');
+              }
             }
-          }
 
-          // Check abort before showing success (download may have raced the timer)
+            setButtonState(button, 'success');
+
+            const partialMsg =
+              comments.length < settings.topCommentCount && comments.length > 0
+                ? ` (only ${comments.length} comments found)`
+                : '';
+            const clipboardMsg = copiedToClipboard
+              ? 'Exported and copied to clipboard!'
+              : 'Exported successfully!';
+            showToast('success', `${clipboardMsg}${partialMsg}`);
+          };
+
+          // Check abort before side-effecting download
           if (abort.signal.aborted)
             throw new ExportTimeoutError(EXPORT_TIMEOUT_MS);
 
-          setButtonState(button, 'success');
+          if (settings.showExportPreview) {
+            // Show preview toast and wait for user decision
+            previewShown = true;
+            setButtonState(button, 'default');
 
-          const partialMsg =
-            comments.length < settings.topCommentCount && comments.length > 0
-              ? ` (only ${comments.length} comments found)`
-              : '';
-          const clipboardMsg = copiedToClipboard
-            ? 'Exported and copied to clipboard!'
-            : 'Exported successfully!';
-          showToast('success', `${clipboardMsg}${partialMsg}`);
+            const authorDisplay = `${tweetData.author.display_name} (@${tweetData.author.handle})`;
+            showToast('preview', '', {
+              preview: {
+                author: authorDisplay,
+                text: tweetData.text,
+                commentCount: comments.length,
+              },
+              onConfirm: () => {
+                if (!button.isConnected) {
+                  exportInProgress = false;
+                  return;
+                }
+                performDownload()
+                  .catch((err) => {
+                    console.error('[TweetExport] Download failed:', err);
+                    if (button.isConnected) setButtonState(button, 'error');
+                    showToast('error', getErrorMessage(err));
+                  })
+                  .finally(() => {
+                    exportInProgress = false;
+                  });
+              },
+              onCancel: () => {
+                exportInProgress = false;
+                showToast('info', 'Export cancelled.');
+              },
+            });
+          } else {
+            await performDownload();
+          }
         } catch (error) {
-          clearTimeout(timer);
-
           // Restore page state if we navigated away during the pipeline
           await safeRestore();
 
@@ -193,12 +227,13 @@ export default defineContentScript({
           });
         } finally {
           clearTimeout(timer);
-          exportInProgress = false;
+          if (!previewShown) exportInProgress = false;
         }
       });
     });
 
     ctx.onInvalidated(() => {
+      clearAllToasts();
       browser.runtime.onMessage.removeListener(onMessage);
       stopObserving();
     });

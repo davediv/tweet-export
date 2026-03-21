@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ToggleSwitch from '@/components/ToggleSwitch.svelte';
   import {
     DEFAULT_SETTINGS,
     MAX_COMMENT_COUNT,
@@ -17,12 +18,14 @@
 
   let topCommentCount = $state(DEFAULT_SETTINGS.topCommentCount);
   let copyToClipboard = $state(DEFAULT_SETTINGS.copyToClipboard);
+  let showExportPreview = $state(DEFAULT_SETTINGS.showExportPreview);
   let loading = $state(true);
 
   async function loadSettings() {
     const settings = await getSettings();
     topCommentCount = settings.topCommentCount;
     copyToClipboard = settings.copyToClipboard;
+    showExportPreview = settings.showExportPreview;
     loading = false;
   }
 
@@ -42,6 +45,11 @@
   function handleClipboardToggle() {
     copyToClipboard = !copyToClipboard;
     saveSettings({ copyToClipboard });
+  }
+
+  function handlePreviewToggle() {
+    showExportPreview = !showExportPreview;
+    saveSettings({ showExportPreview });
   }
 
   loadSettings();
@@ -111,38 +119,21 @@
     {/if}
   </div>
 
-  <!-- Copy to clipboard toggle -->
-  <div class="mt-4 flex items-center justify-between">
-    <label
-      id="copyToClipboardLabel"
-      class="text-sm font-medium text-gray-700 dark:text-gray-300"
-    >
-      Copy JSON to clipboard
-    </label>
-    {#if loading}
-      <div
-        class="w-9 h-5 bg-gray-100 dark:bg-gray-700 rounded-full animate-pulse"
-      ></div>
-    {:else}
-      <button
-        type="button"
-        role="switch"
-        aria-checked={copyToClipboard}
-        aria-labelledby="copyToClipboardLabel"
-        onclick={handleClipboardToggle}
-        class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-800 outline-none {copyToClipboard
-          ? 'bg-blue-500'
-          : 'bg-gray-300 dark:bg-gray-600'}"
-      >
-        <span
-          aria-hidden="true"
-          class="pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow ring-0 transition-transform {copyToClipboard
-            ? 'translate-x-4'
-            : 'translate-x-0'}"
-        ></span>
-      </button>
-    {/if}
-  </div>
+  <ToggleSwitch
+    id="copyToClipboard"
+    label="Copy JSON to clipboard"
+    checked={copyToClipboard}
+    {loading}
+    onToggle={handleClipboardToggle}
+  />
+
+  <ToggleSwitch
+    id="showExportPreview"
+    label="Show export preview"
+    checked={showExportPreview}
+    {loading}
+    onToggle={handlePreviewToggle}
+  />
 
   <!-- Footer -->
   <hr class="border-gray-200 dark:border-gray-700 mt-4 mb-3" />

@@ -163,15 +163,18 @@ export interface LoadRepliesResult {
  * - If on feed view, clicks the tweet's permalink to trigger SPA navigation, then waits.
  * - Implements one automatic retry if no replies found within the initial 2-second timeout.
  * - Returns empty array for tweets with no replies (no errors thrown).
+ * - Checks the optional AbortSignal at each async step for early termination.
  *
  * @param tweetEl - The tweet's article DOM element (used for permalink click navigation)
  * @param tweetUrl - Canonical tweet URL (e.g., https://x.com/user/status/123)
  * @param desiredCount - Target number of replies to load (triggers scroll/expand if needed)
+ * @param signal - Optional AbortSignal to cancel long-running reply loading
  */
 export async function loadReplies(
   tweetEl: HTMLElement,
   tweetUrl: string,
   desiredCount: number = 5,
+  signal?: AbortSignal,
 ): Promise<LoadRepliesResult> {
   const tweetId = extractTweetId(tweetUrl);
   if (!tweetId) {
@@ -203,12 +206,16 @@ export async function loadReplies(
     }
 
     const reached = await waitForUrl(pathname);
-    if (!reached) {
+    if (!reached || signal?.aborted) {
       return { replies: [], navigated: true, originalScrollY };
     }
 
     // Allow DOM to render after SPA navigation
     await new Promise((r) => setTimeout(r, POST_NAV_DELAY_MS));
+  }
+
+  if (signal?.aborted) {
+    return { replies: [], navigated: !onDetailPage, originalScrollY };
   }
 
   // Check for reply elements
@@ -221,13 +228,13 @@ export async function loadReplies(
   let replies = await waitForDOM(checker, REPLY_WAIT_MS);
 
   // One automatic retry if no replies found on first attempt
-  if (!replies) {
+  if (!replies && !signal?.aborted) {
     replies = await waitForDOM(checker, REPLY_WAIT_MS);
   }
 
   // Try to expand "Show more replies" sections if not enough
   let replyList = replies ?? [];
-  if (replyList.length < desiredCount) {
+  if (replyList.length < desiredCount && !signal?.aborted) {
     const expanded = await expandShowMoreReplies();
     if (expanded) {
       replyList = collectReplies(tweetId);
@@ -238,7 +245,8 @@ export async function loadReplies(
   let scrollAttempts = 0;
   while (
     replyList.length < desiredCount &&
-    scrollAttempts < MAX_SCROLL_ATTEMPTS
+    scrollAttempts < MAX_SCROLL_ATTEMPTS &&
+    !signal?.aborted
   ) {
     const prevCount = replyList.length;
     const grew = await scrollForMore();

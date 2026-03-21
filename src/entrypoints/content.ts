@@ -1,6 +1,6 @@
 /**
  * Content script entry point: injects export buttons into tweets and orchestrates
- * the scrape → navigate → download export pipeline.
+ * the scrape → navigate → download export pipeline with graceful error handling.
  */
 
 import '@/assets/tailwind.css';
@@ -8,6 +8,12 @@ import { mount, unmount } from 'svelte';
 import ToastContainer from '@/components/ToastContainer.svelte';
 import { assembleExportData, serializeExport } from '@/lib/assemble-export';
 import { downloadTweetJson } from '@/lib/download';
+import {
+  DomStructureError,
+  ExportError,
+  ExportTimeoutError,
+  ReplyLoadError,
+} from '@/lib/errors';
 import {
   getButtonState,
   injectExportButton,
@@ -20,7 +26,17 @@ import { getSettings, onSettingsChange, type Settings } from '@/lib/storage';
 import { showToast } from '@/lib/toast.svelte';
 import { observeTweets } from '@/lib/tweet-observer';
 
+const EXPORT_TIMEOUT_MS = 10000;
+
 let exportInProgress = false;
+
+/**
+ * Returns a user-friendly error message based on the error type.
+ */
+function getErrorMessage(error: unknown): string {
+  if (error instanceof ExportError) return error.userMessage;
+  return 'Export failed. Try again.';
+}
 
 export default defineContentScript({
   matches: ['*://x.com/*', '*://twitter.com/*'],
@@ -52,21 +68,68 @@ export default defineContentScript({
         exportInProgress = true;
         setButtonState(button, 'loading');
 
+        // AbortController for cancelling work after timeout
+        const abort = new AbortController();
+        // Track navigation state for cleanup on both success and failure
+        let navigated = false;
+        let originalScrollY = 0;
+        let restored = false;
+
+        const safeRestore = async () => {
+          if (navigated && !restored) {
+            restored = true;
+            try {
+              await restorePageState(true, originalScrollY);
+            } catch {
+              // Best-effort — don't mask the original error
+            }
+          }
+        };
+
+        // Set up the timeout to abort the pipeline
+        const timer = setTimeout(() => abort.abort(), EXPORT_TIMEOUT_MS);
+
         try {
           const tweetData = scrapeTweet(clickedTweetEl);
-          if (!tweetData) {
-            throw new Error('Failed to extract tweet data');
+          if (!tweetData) throw new DomStructureError();
+
+          // Attempt reply loading with one automatic retry on failure
+          let loadResult: Awaited<ReturnType<typeof loadReplies>>;
+          try {
+            loadResult = await loadReplies(
+              clickedTweetEl,
+              tweetData.url,
+              settings.topCommentCount,
+              abort.signal,
+            );
+          } catch {
+            try {
+              loadResult = await loadReplies(
+                clickedTweetEl,
+                tweetData.url,
+                settings.topCommentCount,
+                abort.signal,
+              );
+            } catch (retryError) {
+              throw new ReplyLoadError(
+                retryError instanceof Error ? retryError.message : undefined,
+              );
+            }
           }
 
-          const { replies, navigated, originalScrollY } = await loadReplies(
-            clickedTweetEl,
-            tweetData.url,
+          navigated = loadResult.navigated;
+          originalScrollY = loadResult.originalScrollY;
+
+          const comments = scrapeTopComments(
+            loadResult.replies,
             settings.topCommentCount,
           );
 
-          const comments = scrapeTopComments(replies, settings.topCommentCount);
+          await safeRestore();
 
-          await restorePageState(navigated, originalScrollY);
+          // Check abort before side-effecting download
+          if (abort.signal.aborted)
+            throw new ExportTimeoutError(EXPORT_TIMEOUT_MS);
 
           const exportData = assembleExportData(
             tweetData,
@@ -77,6 +140,10 @@ export default defineContentScript({
 
           await downloadTweetJson(tweetData.id, json);
 
+          // Check abort before showing success (download may have raced the timer)
+          if (abort.signal.aborted)
+            throw new ExportTimeoutError(EXPORT_TIMEOUT_MS);
+
           setButtonState(button, 'success');
 
           const partialMsg =
@@ -85,9 +152,14 @@ export default defineContentScript({
               : '';
           showToast('success', `Exported successfully!${partialMsg}`);
         } catch (error) {
+          clearTimeout(timer);
+
+          // Restore page state if we navigated away during the pipeline
+          await safeRestore();
+
           console.error('[TweetExport] Export failed:', error);
           setButtonState(button, 'error');
-          showToast('error', 'Export failed. Try again.', {
+          showToast('error', getErrorMessage(error), {
             onRetry: () => {
               if (button.isConnected) {
                 button.click();
@@ -100,6 +172,7 @@ export default defineContentScript({
             },
           });
         } finally {
+          clearTimeout(timer);
           exportInProgress = false;
         }
       });

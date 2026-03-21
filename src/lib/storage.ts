@@ -9,6 +9,9 @@ export interface Settings {
   copyToClipboard: boolean;
 }
 
+export const MIN_COMMENT_COUNT = 1;
+export const MAX_COMMENT_COUNT = 20;
+
 export const DEFAULT_SETTINGS: Settings = {
   topCommentCount: 5,
   copyToClipboard: false,

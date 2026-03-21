@@ -4,6 +4,7 @@
  */
 
 import { extractTweetMedia } from '@/lib/scrape-media';
+import { MAX_COMMENT_COUNT, MIN_COMMENT_COUNT } from '@/lib/storage';
 import {
   extractText,
   extractTimestamp,
@@ -190,7 +191,10 @@ export function scrapeTopComments(
 ): CommentData[] {
   if (replyElements.length === 0) return [];
 
-  const clampedCount = Math.max(1, Math.min(20, count));
+  const clampedCount = Math.max(
+    MIN_COMMENT_COUNT,
+    Math.min(MAX_COMMENT_COUNT, count),
+  );
   const seen = new Set<string>();
   const comments: CommentData[] = [];
 

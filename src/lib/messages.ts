@@ -15,9 +15,22 @@ export interface DownloadJsonResponse {
   error?: string;
 }
 
+export interface GetSettingsMessage {
+  type: 'getSettings';
+}
+
+export interface GetSettingsResponse {
+  success: boolean;
+  settings?: Settings;
+  error?: string;
+}
+
 export interface SettingsUpdatedMessage {
   type: 'settingsUpdated';
   settings: Settings;
 }
 
-export type ExtensionMessage = DownloadJsonMessage | SettingsUpdatedMessage;
+export type ExtensionMessage =
+  | DownloadJsonMessage
+  | GetSettingsMessage
+  | SettingsUpdatedMessage;

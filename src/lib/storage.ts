@@ -2,6 +2,8 @@
  * Chrome storage.sync wrapper for TweetExport settings persistence.
  */
 
+import type { GetSettingsResponse } from '@/lib/messages';
+
 export interface Settings {
   topCommentCount: number;
   copyToClipboard: boolean;
@@ -35,6 +37,22 @@ export async function saveSettings(
   const merged = { ...current, ...updates };
   await browser.storage.sync.set({ [STORAGE_KEY]: merged });
   return merged;
+}
+
+/**
+ * Requests current settings from the background service worker via message passing.
+ * Falls back to defaults if the background is unavailable.
+ */
+export async function requestSettings(): Promise<Settings> {
+  try {
+    const res = (await browser.runtime.sendMessage({
+      type: 'getSettings',
+    })) as GetSettingsResponse;
+    if (res?.success && res.settings) return res.settings;
+  } catch {
+    // Background may not be ready yet — fall back to defaults
+  }
+  return { ...DEFAULT_SETTINGS };
 }
 
 export type SettingsChangeCallback = (

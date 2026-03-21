@@ -46,3 +46,8 @@ export class ReplyLoadError extends ExportError {
     this.name = 'ReplyLoadError';
   }
 }
+
+/** Extracts a message string from an unknown error, or returns the fallback. */
+export function extractErrorMessage(err: unknown, fallback: string): string {
+  return err instanceof Error ? err.message : fallback;
+}

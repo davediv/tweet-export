@@ -1,9 +1,11 @@
+import { extractErrorMessage } from '@/lib/errors';
 import type {
   DownloadJsonResponse,
   ExtensionMessage,
+  GetSettingsResponse,
   SettingsUpdatedMessage,
 } from '@/lib/messages';
-import { onSettingsChange } from '@/lib/storage';
+import { getSettings, onSettingsChange } from '@/lib/storage';
 
 /**
  * Handles a download request from the content script.
@@ -20,8 +22,26 @@ async function handleDownload(
     await browser.downloads.download({ url: dataUrl, filename, saveAs: false });
     return { success: true };
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Download failed';
-    return { success: false, error: message };
+    return {
+      success: false,
+      error: extractErrorMessage(err, 'Download failed'),
+    };
+  }
+}
+
+/**
+ * Handles a settings request from a content script.
+ * Reads current settings from chrome.storage.sync and returns them.
+ */
+async function handleGetSettings(): Promise<GetSettingsResponse> {
+  try {
+    const settings = await getSettings();
+    return { success: true, settings };
+  } catch (err) {
+    return {
+      success: false,
+      error: extractErrorMessage(err, 'Failed to read settings'),
+    };
   }
 }
 
@@ -36,7 +56,12 @@ export default defineBackground({
       (message: ExtensionMessage, _sender, sendResponse) => {
         if (message.type === 'downloadJson') {
           handleDownload(message.filename, message.json).then(sendResponse);
-          return true; // Keep message channel open for async response
+          return true;
+        }
+
+        if (message.type === 'getSettings') {
+          handleGetSettings().then(sendResponse);
+          return true;
         }
       },
     );

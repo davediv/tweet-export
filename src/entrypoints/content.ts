@@ -22,7 +22,8 @@ import {
 import { loadReplies, restorePageState } from '@/lib/navigate-replies';
 import { scrapeTopComments } from '@/lib/scrape-comments';
 import { scrapeTweet } from '@/lib/scrape-tweet';
-import { getSettings, onSettingsChange, type Settings } from '@/lib/storage';
+import type { ExtensionMessage } from '@/lib/messages';
+import { requestSettings, type Settings } from '@/lib/storage';
 import { showToast } from '@/lib/toast.svelte';
 import { observeTweets } from '@/lib/tweet-observer';
 
@@ -56,10 +57,16 @@ export default defineContentScript({
     });
     toastUi.mount();
 
-    let settings: Settings = await getSettings();
-    const stopSettings = onSettingsChange((newSettings) => {
-      settings = newSettings;
-    });
+    // Request initial settings from background service worker
+    let settings: Settings = await requestSettings();
+
+    // Listen for settings broadcasts from background service worker
+    const onMessage = (message: ExtensionMessage) => {
+      if (message.type === 'settingsUpdated') {
+        settings = message.settings;
+      }
+    };
+    browser.runtime.onMessage.addListener(onMessage);
 
     const stopObserving = observeTweets((tweetEl) => {
       injectExportButton(tweetEl, async (clickedTweetEl, button) => {
@@ -179,7 +186,7 @@ export default defineContentScript({
     });
 
     ctx.onInvalidated(() => {
-      stopSettings();
+      browser.runtime.onMessage.removeListener(onMessage);
       stopObserving();
     });
   },

@@ -147,6 +147,16 @@ export default defineContentScript({
 
           await downloadTweetJson(tweetData.id, json);
 
+          let copiedToClipboard = false;
+          if (settings.copyToClipboard) {
+            try {
+              await navigator.clipboard.writeText(json);
+              copiedToClipboard = true;
+            } catch {
+              showToast('info', 'Could not copy to clipboard.');
+            }
+          }
+
           // Check abort before showing success (download may have raced the timer)
           if (abort.signal.aborted)
             throw new ExportTimeoutError(EXPORT_TIMEOUT_MS);
@@ -157,7 +167,10 @@ export default defineContentScript({
             comments.length < settings.topCommentCount && comments.length > 0
               ? ` (only ${comments.length} comments found)`
               : '';
-          showToast('success', `Exported successfully!${partialMsg}`);
+          const clipboardMsg = copiedToClipboard
+            ? 'Exported and copied to clipboard!'
+            : 'Exported successfully!';
+          showToast('success', `${clipboardMsg}${partialMsg}`);
         } catch (error) {
           clearTimeout(timer);
 

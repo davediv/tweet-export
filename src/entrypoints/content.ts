@@ -48,6 +48,7 @@ export default defineContentScript({
       name: 'tweetexport-toasts',
       position: 'inline',
       anchor: 'body',
+      mode: 'closed',
       onMount: (container) => {
         return mount(ToastContainer, { target: container });
       },

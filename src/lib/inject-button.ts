@@ -132,6 +132,9 @@ function createExportButton(): {
   wrapper.style.display = 'flex';
   wrapper.style.alignItems = 'center';
 
+  // Prevent X's stylesheets from affecting the button
+  const shadow = wrapper.attachShadow({ mode: 'closed' });
+
   const button = document.createElement('button');
   button.type = 'button';
   button.setAttribute('aria-label', 'Export tweet as JSON');
@@ -150,6 +153,7 @@ function createExportButton(): {
     padding: '0',
     transition: 'background-color 0.2s, color 0.2s',
     color: COLOR_DEFAULT,
+    lineHeight: '1',
   });
 
   // Hover effect
@@ -170,7 +174,7 @@ function createExportButton(): {
   button.innerHTML = ICON_EXPORT;
   buttonStates.set(button, 'default');
 
-  wrapper.appendChild(button);
+  shadow.appendChild(button);
   return { wrapper, button };
 }
 

@@ -47,7 +47,10 @@
   loadSettings();
 </script>
 
-<main class="w-80 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-5">
+<main
+  class="w-80 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-5"
+  aria-busy={loading}
+>
   <!-- Header -->
   <div class="flex items-center justify-between mb-4">
     <div class="flex items-center gap-2">
@@ -69,7 +72,7 @@
       </h1>
     </div>
     <span
-      class="text-xs font-medium text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full"
+      class="text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full"
     >
       v{version}
     </span>
@@ -96,9 +99,13 @@
         max={MAX_COMMENT_COUNT}
         value={topCommentCount}
         onchange={handleChange}
-        class="w-full px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+        aria-describedby="topCommentCount-hint"
+        class="w-full px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:border-blue-500 outline-none transition-colors"
       />
-      <p class="text-xs text-gray-400 dark:text-gray-500">
+      <p
+        id="topCommentCount-hint"
+        class="text-xs text-gray-500 dark:text-gray-400"
+      >
         Between {MIN_COMMENT_COUNT} and {MAX_COMMENT_COUNT} comments per export
       </p>
     {/if}
@@ -107,7 +114,7 @@
   <!-- Copy to clipboard toggle -->
   <div class="mt-4 flex items-center justify-between">
     <label
-      for="copyToClipboard"
+      id="copyToClipboardLabel"
       class="text-sm font-medium text-gray-700 dark:text-gray-300"
     >
       Copy JSON to clipboard
@@ -118,12 +125,12 @@
       ></div>
     {:else}
       <button
-        id="copyToClipboard"
         type="button"
         role="switch"
         aria-checked={copyToClipboard}
+        aria-labelledby="copyToClipboardLabel"
         onclick={handleClipboardToggle}
-        class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 outline-none {copyToClipboard
+        class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-800 outline-none {copyToClipboard
           ? 'bg-blue-500'
           : 'bg-gray-300 dark:bg-gray-600'}"
       >
@@ -140,7 +147,7 @@
   <!-- Footer -->
   <hr class="border-gray-200 dark:border-gray-700 mt-4 mb-3" />
   <footer
-    class="flex items-center justify-center gap-3 text-xs text-gray-400 dark:text-gray-500"
+    class="flex items-center justify-center gap-3 text-xs text-gray-500 dark:text-gray-400"
   >
     {#each footerLinks as link, i (link.label)}
       {#if i > 0}
@@ -150,9 +157,9 @@
         href={link.href}
         target="_blank"
         rel="noopener noreferrer"
-        class="hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+        class="hover:text-blue-500 dark:hover:text-blue-400 focus-visible:text-blue-500 dark:focus-visible:text-blue-400 focus-visible:outline-none transition-colors"
       >
-        {link.label}
+        {link.label}<span class="sr-only"> (opens in new tab)</span>
       </a>
     {/each}
   </footer>

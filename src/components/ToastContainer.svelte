@@ -57,10 +57,10 @@
     <div
       class="{styles.bg} {styles.border} border-l-4 rounded-lg shadow-lg px-4 py-3 flex items-start gap-3 max-w-sm"
       transition:fly={{ x: 100, duration: 200 }}
-      role="alert"
+      role={toast.type === 'error' ? 'alert' : 'status'}
     >
       <!-- Type icon -->
-      <span class="{styles.icon} flex-shrink-0 mt-0.5">
+      <span class="{styles.icon} shrink-0 mt-0.5" aria-hidden="true">
         <svg viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
           <path fill-rule="evenodd" d={styles.iconPath} clip-rule="evenodd" />
         </svg>
@@ -71,7 +71,7 @@
         <p class="{styles.text} text-sm font-medium">{toast.message}</p>
         {#if toast.type === 'error' && toast.onRetry}
           <button
-            class="text-red-600 text-xs font-semibold hover:text-red-800 hover:underline mt-1"
+            class="text-red-600 text-xs font-semibold hover:text-red-800 hover:underline focus-visible:text-red-800 focus-visible:underline focus-visible:outline-none mt-1"
             onclick={() => handleRetry(toast)}
           >
             Retry
@@ -81,11 +81,16 @@
 
       <!-- Close button -->
       <button
-        class="flex-shrink-0 {styles.text} opacity-50 hover:opacity-100 transition-opacity"
+        class="shrink-0 {styles.text} opacity-50 hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none transition-opacity"
         onclick={() => removeToast(toast.id)}
         aria-label="Dismiss notification"
       >
-        <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+        <svg
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          class="w-4 h-4"
+          aria-hidden="true"
+        >
           <path
             d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"
           />

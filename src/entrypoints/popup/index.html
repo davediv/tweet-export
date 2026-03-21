@@ -5,13 +5,13 @@
     <title>TweetExport Settings</title>
     <meta name="manifest.type" content="browser_action" />
   </head>
-  <body
-    style="margin: 0; background: #f9fafb"
-    class="bg-gray-50 dark:bg-gray-900 m-0"
-  >
+  <body class="bg-gray-50 dark:bg-gray-900 m-0">
     <script>
-      if (window.matchMedia('(prefers-color-scheme:dark)').matches)
-        document.body.style.background = '#111827';
+      // Set background early to prevent flash of wrong color
+      var bg = window.matchMedia('(prefers-color-scheme:dark)').matches
+        ? '#111827'
+        : '#f9fafb';
+      document.body.style.background = bg;
     </script>
     <div id="app"></div>
     <script type="module" src="./main.ts"></script>

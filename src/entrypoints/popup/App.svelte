@@ -9,6 +9,12 @@
 
   const version = browser.runtime.getManifest().version;
 
+  const REPO_URL = 'https://github.com/nicepkg/tweet-export';
+  const footerLinks = [
+    { href: `${REPO_URL}/issues`, label: 'Send Feedback' },
+    { href: REPO_URL, label: 'Documentation' },
+  ] as const;
+
   let topCommentCount = $state(DEFAULT_SETTINGS.topCommentCount);
   let copyToClipboard = $state(DEFAULT_SETTINGS.copyToClipboard);
   let loading = $state(true);
@@ -63,7 +69,7 @@
       </h1>
     </div>
     <span
-      class="text-xs font-medium text-gray-400 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full"
+      class="text-xs font-medium text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full"
     >
       v{version}
     </span>
@@ -130,4 +136,24 @@
       </button>
     {/if}
   </div>
+
+  <!-- Footer -->
+  <hr class="border-gray-200 dark:border-gray-700 mt-4 mb-3" />
+  <footer
+    class="flex items-center justify-center gap-3 text-xs text-gray-400 dark:text-gray-500"
+  >
+    {#each footerLinks as link, i (link.label)}
+      {#if i > 0}
+        <span aria-hidden="true">&middot;</span>
+      {/if}
+      <a
+        href={link.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+      >
+        {link.label}
+      </a>
+    {/each}
+  </footer>
 </main>
